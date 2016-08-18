@@ -3,6 +3,7 @@ import time
 
 from context import HabContext
 from serialport.serialport import SerialPort
+from sysupdate.sysupdate import SysUpdate
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("SerialPort").setLevel(logging.WARN)
@@ -20,6 +21,10 @@ logger.info("Configuring serial port")
 serialport = SerialPort(context=context)
 serialport.start()
 
+logger.info("Running system updater")
+sysupdate = SysUpdate(context=context)
+sysupdate.start()
+
 logger.info("Running")
 try:
     while keep_running:
@@ -34,6 +39,7 @@ except KeyboardInterrupt:
     pass
 
 logger.info("Stopping")
+sysupdate.stop()
 serialport.stop()
 
 logger.info("END")

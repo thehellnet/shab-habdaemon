@@ -56,7 +56,11 @@ class SerialPort:
         self._keep_running = True
 
         while self._keep_running:
-            line = self._serial.readline().strip()
+            try:
+                line = self._serial.readline().strip()
+            except OSError:
+                continue
+
             self.logger.debug("Reading line: %s" % line)
 
             if line[:6] == "$GPGGA":
