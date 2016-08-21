@@ -1,5 +1,5 @@
 import logging
-import subprocess
+import os
 import threading
 from datetime import datetime
 from time import sleep
@@ -17,13 +17,13 @@ class SysUpdate:
         self._last_update = datetime.now()
 
     def start(self):
-        self.logger.debug("Starting system updater")
+        self.logger.info("Starting system updater")
         self._thread = threading.Thread(target=self.update)
         self._thread.setDaemon(True)
         self._thread.start()
 
     def stop(self):
-        self.logger.debug("Stopping system updater")
+        self.logger.info("Stopping system updater")
         self._keep_running = False
         self._thread.join()
 
@@ -39,5 +39,5 @@ class SysUpdate:
 
             self._last_update = datetime.now()
             if self._context.gpsdatetime is not None:
-                self.logger.info("Update system time")
-                subprocess.check_output("date --set=\"%s\"" % self._context.gpsdatetime)
+                self.logger.debug("Update system time")
+                os.system("date --set=\"%s\"" % self._context.gpsdatetime)

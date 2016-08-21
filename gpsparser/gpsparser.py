@@ -8,15 +8,15 @@ def parse_gga(line=""):
 
     items = line.split(",")
     if len(items) != 15 \
-            or items[0] != "$GPGGA" \
-            or int(items[6]) == 0:
+            or items[0] != "$GPGGA":
         return None
 
+    status = int(items[6])
     latitude = (float(items[2][:2]) + float(items[2][2:]) / 60) * (-1 if items[3] == "S" else 1)
     longitude = (float(items[4][:3]) + float(items[4][3:]) / 60) * (-1 if items[5] == "W" else 1)
     altitude = float(items[9])
 
-    return latitude, longitude, altitude
+    return status, latitude, longitude, altitude
 
 
 def parse_rmc(line=""):

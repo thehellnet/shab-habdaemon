@@ -1,16 +1,20 @@
 import logging
-import time
+from datetime import datetime
 
+from action import Action
 from context import HabContext
 from serialport.serialport import SerialPort
 from sysupdate.sysupdate import SysUpdate
 
 logging.basicConfig(level=logging.DEBUG)
-logging.getLogger("SerialPort").setLevel(logging.WARN)
+logging.getLogger("exifread").setLevel(logging.WARN)
+logging.getLogger("SerialPort").setLevel(logging.DEBUG)
+logging.getLogger("ImageParser").setLevel(logging.WARN)
 
 logger = logging.getLogger()
 
 keep_running = True
+last_second = 0
 
 logger.info("START")
 
@@ -25,16 +29,21 @@ logger.info("Running system updater")
 sysupdate = SysUpdate(context=context)
 sysupdate.start()
 
+logger.info("Preparing Actions")
+action = Action(context, serialport)
+
 logger.info("Running")
 try:
     while keep_running:
-        time.sleep(3)
-
-        logger.info("Loop")
-        print "    >>>[TX]>>> Latitude: %f - Longitude: %f - Altitude: %f" \
-              % (context.latitude, context.longitude, context.altitude)
-        print "    >>>[TX]>>> Datetime: %s" % context.gpsdatetime
-
+        now = datetime.now()
+        if now.second != last_second:
+            last_second = now.second
+            if now.second % 5 == 0:
+                action.do_position()
+            elif now.second % 2 == 0:
+                action.do_telemetry()
+        else:
+            action.do_image()
 except KeyboardInterrupt:
     pass
 
