@@ -1,8 +1,7 @@
-from time import sleep
-
 from image.imageparser import ImageParser
 from protocol.habimage import HabImage
 from protocol.habposition import HabPosition
+from protocol.habtelemetry import HabTelemetry
 
 
 class Action:
@@ -17,7 +16,9 @@ class Action:
         self._serialport.write(line.serialize())
 
     def do_telemetry(self):
-        sleep(0.5)
+        info = self._context.get_info_hab_telemetry()
+        line = HabTelemetry(info)
+        self._serialport.write(line.serialize())
 
     def do_image(self):
         info = self._image_parser.thumb()

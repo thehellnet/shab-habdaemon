@@ -3,6 +3,7 @@ from datetime import datetime
 
 from action import Action
 from context import HabContext
+from sensor.sensor import Sensor
 from serialport.serialport import SerialPort
 from sysupdate.sysupdate import SysUpdate
 
@@ -29,8 +30,12 @@ logger.info("Running system updater")
 sysupdate = SysUpdate(context=context)
 sysupdate.start()
 
+logger.info("Preparing Sensors")
+sensor = Sensor(context=context)
+sensor.start()
+
 logger.info("Preparing Actions")
-action = Action(context, serialport)
+action = Action(context=context, serialport=serialport)
 
 logger.info("Running")
 try:

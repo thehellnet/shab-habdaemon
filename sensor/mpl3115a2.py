@@ -1,7 +1,5 @@
 import logging
-from smbus import SMBus
-
-bus = SMBus(1)
+import time
 
 
 class MPL3115A2:
@@ -31,6 +29,7 @@ class MPL3115A2:
     BAR_IN_MSB = 0x14
 
     WHOAMI = 0x0C
+    WHOAMI_CHIP_ID = 0xC4
 
     PT_DATA_CFG = 0x13
     PT_DATA_CFG_TDEFE = 0x01
@@ -51,7 +50,7 @@ class MPL3115A2:
     CTRL_REG1_OS128 = 0x38
     CTRL_REG1_RAW = 0x40
     CTRL_REG1_ALT = 0x80
-    CTRL_REG1_BAR = 0x00
+
     CTRL_REG2 = 0x27
     CTRL_REG3 = 0x28
     CTRL_REG4 = 0x29
@@ -66,92 +65,102 @@ class MPL3115A2:
         self._initialized = False
 
     def init(self):
-        self.logger.debug("Initialization")
-        # self.logger.debug("Querying MPL3115A2 in I2C bus")
-        # response = bus.read_byte_data(MPL3115A2.ADDRESS, MPL3115A2.WHOAMI)
-        # if response != 0xc4:
-        #     self.logger.error("MPL3115A2 device not active")
+        self.logger.info("Initialization")
+
+        self.deactivate()
+        self._smbus.write_byte_data(MPL3115A2.ADDRESS,
+                                    MPL3115A2.PT_DATA_CFG,
+                                    MPL3115A2.PT_DATA_CFG_DREM | MPL3115A2.PT_DATA_CFG_PDEFE | MPL3115A2.PT_DATA_CFG_TDEFE)
+
+        # whoami = self._smbus.read_byte_data(MPL3115A2.ADDRESS, MPL3115A2.WHOAMI)
+        # if not whoami == MPL3115A2.WHOAMI_CHIP_ID:
+        #     self.logger.error("Sensor WHO_AM_I not valid. Must be 0x%02X instead 0x%02X"
+        #                       % (MPL3115A2.WHOAMI_CHIP_ID, whoami))
         #     return
 
-        bus.write_byte_data(MPL3115A2.ADDRESS,
-                            MPL3115A2.CTRL_REG1,
-                            MPL3115A2.CTRL_REG1_SBYB | MPL3115A2.CTRL_REG1_OS128 | MPL3115A2.CTRL_REG1_ALT)
-
-        bus.write_byte_data(MPL3115A2.ADDRESS,
-                            MPL3115A2.PT_DATA_CFG,
-                            MPL3115A2.PT_DATA_CFG_TDEFE | MPL3115A2.PT_DATA_CFG_PDEFE | MPL3115A2.PT_DATA_CFG_DREM)
-
-        self.logger.debug("Initialization completed")
+        self.activate()
         self._initialized = True
 
-    def poll(self):
-        self.logger.debug("Polling")
+        # self.calibrate()
 
+        self.logger.info("Initialization completed")
+
+    def deactivate(self):
+        self.logger.info("Deactivate")
+        self._smbus.write_byte_data(MPL3115A2.ADDRESS,
+                                    MPL3115A2.CTRL_REG1,
+                                    MPL3115A2.CTRL_REG1_OS128 | MPL3115A2.CTRL_REG1_ALT)
+
+    def activate(self):
+        self.logger.info("Activate")
+        self._smbus.write_byte_data(MPL3115A2.ADDRESS,
+                                    MPL3115A2.CTRL_REG1,
+                                    MPL3115A2.CTRL_REG1_OS128 | MPL3115A2.CTRL_REG1_ALT | MPL3115A2.CTRL_REG1_SBYB)
+
+    def poll(self, status_bit=0):
         if not self._initialized:
             self.logger.warn("Sensor not initialized")
             return
 
-        sta = 0
-        while not (sta & MPL3115A2.REGISTER_STATUS_PDR):
-            sta = bus.read_byte_data(MPL3115A2.ADDRESS, MPL3115A2.REGISTER_STATUS)
-
-        self.logger.debug("Polling completed")
+        status = 0
+        while not (status & status_bit):
+            status = self._smbus.read_byte_data(MPL3115A2.ADDRESS, MPL3115A2.REGISTER_STATUS)
+            self.logger.debug("Polling STATUS byte: 0x%02X" % status)
+            time.sleep(.5)
 
     def altitude(self):
-        self.logger.debug("Reading altitude")
+        self.logger.info("Reading altitude")
 
         if not self._initialized:
             self.logger.warn("Sensor not initialized")
             return
 
-        bus.write_byte_data(MPL3115A2.ADDRESS,
-                            MPL3115A2.CTRL_REG1,
-                            MPL3115A2.CTRL_REG1_SBYB | MPL3115A2.CTRL_REG1_OS128 | MPL3115A2.CTRL_REG1_ALT)
-        self.poll()
+        self._smbus.write_byte_data(MPL3115A2.ADDRESS,
+                                    MPL3115A2.CTRL_REG1,
+                                    MPL3115A2.CTRL_REG1_OST | MPL3115A2.CTRL_REG1_OS128 | MPL3115A2.CTRL_REG1_ALT)
+        self.poll(MPL3115A2.REGISTER_STATUS_PDR)
 
-        msb, csb, lsb = bus.read_i2c_block_data(MPL3115A2.ADDRESS, MPL3115A2.REGISTER_PRESSURE_MSB, 3)
-        alt = ((msb << 24) | (csb << 16) | (lsb << 8)) / 65536.
+        msb, csb, lsb = self._smbus.read_i2c_block_data(MPL3115A2.ADDRESS, MPL3115A2.REGISTER_PRESSURE_MSB, 3)
+        al = (msb << 24) | (csb << 16) | (lsb << 8)
+        alt = float(al / 65536)
         if alt > (1 << 15):
             alt -= 1 << 16
 
         return alt
 
     def temperature(self):
-        self.logger.debug("Reading temperature")
+        self.logger.info("Reading temperature")
 
         if not self._initialized:
             self.logger.warn("Sensor not initialized")
             return
 
-        bus.write_byte_data(MPL3115A2.ADDRESS,
-                            MPL3115A2.CTRL_REG1,
-                            MPL3115A2.CTRL_REG1_SBYB | MPL3115A2.CTRL_REG1_OS128 | MPL3115A2.CTRL_REG1_ALT)
-        self.poll()
+        self.poll(MPL3115A2.REGISTER_STATUS_TDR)
 
-        msb, lsb = bus.read_i2c_block_data(MPL3115A2.ADDRESS, MPL3115A2.REGISTER_TEMP_MSB, 2)
-        return (((msb << 8) | lsb) >> 4) * 0.0625
+        msb, lsb = self._smbus.read_i2c_block_data(MPL3115A2.ADDRESS, MPL3115A2.REGISTER_TEMP_MSB, 2)
+        return float((msb << 8) | lsb) / 256
 
     def pressure(self):
-        self.logger.debug("Reading pressure")
+        self.logger.info("Reading pressure")
 
         if not self._initialized:
             self.logger.warn("Sensor not initialized")
             return
 
-        bus.write_byte_data(MPL3115A2.ADDRESS,
-                            MPL3115A2.CTRL_REG1,
-                            MPL3115A2.CTRL_REG1_SBYB | MPL3115A2.CTRL_REG1_OS128 | MPL3115A2.CTRL_REG1_BAR)
-        self.poll()
+        self._smbus.write_byte_data(MPL3115A2.ADDRESS,
+                                    MPL3115A2.CTRL_REG1,
+                                    MPL3115A2.CTRL_REG1_OST | MPL3115A2.CTRL_REG1_OS128)
+        self.poll(MPL3115A2.REGISTER_STATUS_PDR)
 
-        msb, csb, lsb = bus.read_i2c_block_data(MPL3115A2.ADDRESS, MPL3115A2.REGISTER_PRESSURE_MSB, 3)
-        return ((msb << 16) | (csb << 8) | lsb) / 64.
+        msb, csb, lsb = self._smbus.read_i2c_block_data(MPL3115A2.ADDRESS, MPL3115A2.REGISTER_PRESSURE_MSB, 3)
+        return float(((msb << 16) | (csb << 8) | lsb) / 64)
 
     def calibrate(self):
-        self.logger.debug("Calibrating")
+        self.logger.info("Calibrating")
 
         if not self._initialized:
             self.logger.warn("Sensor not initialized")
             return
 
         pa = int(self.pressure() / 2)
-        bus.write_i2c_block_data(MPL3115A2.ADDRESS, MPL3115A2.BAR_IN_MSB, [pa >> 8 & 0xff, pa & 0xff])
+        self._smbus.write_i2c_block_data(MPL3115A2.ADDRESS, MPL3115A2.BAR_IN_MSB, [pa >> 8 & 0xff, pa & 0xff])

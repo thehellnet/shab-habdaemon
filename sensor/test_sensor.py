@@ -9,6 +9,7 @@ class TestSensor(TestCase):
     def test_int_temp(self):
         logging.basicConfig(level=logging.DEBUG)
         sensor = Sensor()
-        print sensor.int_temp()
-        print sensor.ext_temp()
-        print sensor.ext_alt()
+        for i in range(20):
+            print sensor.int_temp()
+            print sensor.ext_temp()
+            print sensor.ext_alt()
