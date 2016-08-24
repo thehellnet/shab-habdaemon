@@ -9,7 +9,7 @@ from sysupdate.sysupdate import SysUpdate
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("exifread").setLevel(logging.WARN)
-logging.getLogger("SerialPort").setLevel(logging.DEBUG)
+logging.getLogger("SerialPort").setLevel(logging.WARN)
 logging.getLogger("ImageParser").setLevel(logging.WARN)
 
 logger = logging.getLogger()

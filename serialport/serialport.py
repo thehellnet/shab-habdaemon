@@ -86,6 +86,4 @@ class SerialPort:
 
         data = line.strip()
         self.logger.debug("Writing line: %s" % data)
-        print data
         self._serial.write(data + "\n")
-        # self._serial.drainOutput()

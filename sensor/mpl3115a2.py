@@ -52,6 +52,8 @@ class MPL3115A2:
     CTRL_REG1_ALT = 0x80
 
     CTRL_REG2 = 0x27
+    CTRL_REG2_ST0 = 0x00
+
     CTRL_REG3 = 0x28
     CTRL_REG4 = 0x29
     CTRL_REG5 = 0x2A
@@ -72,30 +74,40 @@ class MPL3115A2:
                                     MPL3115A2.PT_DATA_CFG,
                                     MPL3115A2.PT_DATA_CFG_DREM | MPL3115A2.PT_DATA_CFG_PDEFE | MPL3115A2.PT_DATA_CFG_TDEFE)
 
+        self._smbus.write_byte_data(MPL3115A2.ADDRESS,
+                                    MPL3115A2.CTRL_REG2,
+                                    MPL3115A2.CTRL_REG2_ST0)
+
         # whoami = self._smbus.read_byte_data(MPL3115A2.ADDRESS, MPL3115A2.WHOAMI)
         # if not whoami == MPL3115A2.WHOAMI_CHIP_ID:
         #     self.logger.error("Sensor WHO_AM_I not valid. Must be 0x%02X instead 0x%02X"
         #                       % (MPL3115A2.WHOAMI_CHIP_ID, whoami))
         #     return
 
-        self.activate()
+        # self.activate()
         self._initialized = True
 
         # self.calibrate()
 
         self.logger.info("Initialization completed")
 
-    def deactivate(self):
-        self.logger.info("Deactivate")
-        self._smbus.write_byte_data(MPL3115A2.ADDRESS,
-                                    MPL3115A2.CTRL_REG1,
-                                    MPL3115A2.CTRL_REG1_OS128 | MPL3115A2.CTRL_REG1_ALT)
-
     def activate(self):
         self.logger.info("Activate")
         self._smbus.write_byte_data(MPL3115A2.ADDRESS,
                                     MPL3115A2.CTRL_REG1,
-                                    MPL3115A2.CTRL_REG1_OS128 | MPL3115A2.CTRL_REG1_ALT | MPL3115A2.CTRL_REG1_SBYB)
+                                    MPL3115A2.CTRL_REG1_OS1 | MPL3115A2.CTRL_REG1_ALT | MPL3115A2.CTRL_REG1_SBYB)
+
+    def oneshot(self):
+        self.logger.info("Oneshot")
+        self._smbus.write_byte_data(MPL3115A2.ADDRESS,
+                                    MPL3115A2.CTRL_REG1,
+                                    MPL3115A2.CTRL_REG1_OS1 | MPL3115A2.CTRL_REG1_ALT | MPL3115A2.CTRL_REG1_SBYB | MPL3115A2.CTRL_REG1_OST)
+
+    def deactivate(self):
+        self.logger.info("Deactivate")
+        self._smbus.write_byte_data(MPL3115A2.ADDRESS,
+                                    MPL3115A2.CTRL_REG1,
+                                    MPL3115A2.CTRL_REG1_OS1 | MPL3115A2.CTRL_REG1_ALT)
 
     def poll(self, status_bit=0):
         if not self._initialized:
@@ -115,9 +127,7 @@ class MPL3115A2:
             self.logger.warn("Sensor not initialized")
             return
 
-        self._smbus.write_byte_data(MPL3115A2.ADDRESS,
-                                    MPL3115A2.CTRL_REG1,
-                                    MPL3115A2.CTRL_REG1_OST | MPL3115A2.CTRL_REG1_OS128 | MPL3115A2.CTRL_REG1_ALT)
+        self.oneshot()
         self.poll(MPL3115A2.REGISTER_STATUS_PDR)
 
         msb, csb, lsb = self._smbus.read_i2c_block_data(MPL3115A2.ADDRESS, MPL3115A2.REGISTER_PRESSURE_MSB, 3)
@@ -135,6 +145,7 @@ class MPL3115A2:
             self.logger.warn("Sensor not initialized")
             return
 
+        self.oneshot()
         self.poll(MPL3115A2.REGISTER_STATUS_TDR)
 
         msb, lsb = self._smbus.read_i2c_block_data(MPL3115A2.ADDRESS, MPL3115A2.REGISTER_TEMP_MSB, 2)
@@ -147,9 +158,7 @@ class MPL3115A2:
             self.logger.warn("Sensor not initialized")
             return
 
-        self._smbus.write_byte_data(MPL3115A2.ADDRESS,
-                                    MPL3115A2.CTRL_REG1,
-                                    MPL3115A2.CTRL_REG1_OST | MPL3115A2.CTRL_REG1_OS128)
+        self.oneshot()
         self.poll(MPL3115A2.REGISTER_STATUS_PDR)
 
         msb, csb, lsb = self._smbus.read_i2c_block_data(MPL3115A2.ADDRESS, MPL3115A2.REGISTER_PRESSURE_MSB, 3)
