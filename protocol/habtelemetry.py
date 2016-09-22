@@ -1,3 +1,5 @@
+import time
+
 from protocol.abstractline import AbstractLine
 
 
@@ -11,5 +13,7 @@ class HabTelemetry(AbstractLine):
             self._int_temp, self._ext_temp, self._ext_alt = info
 
     def serialize_line(self):
-        return "HT|%.01f|%.01f|%d" % \
-               (self._int_temp, self._ext_temp, self._ext_alt)
+        return "HT|%d|%.01f|%.01f|%d" % (time.time() * 1000,
+                                         self._int_temp,
+                                         self._ext_temp,
+                                         self._ext_alt)

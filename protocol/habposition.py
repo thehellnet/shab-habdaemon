@@ -1,3 +1,5 @@
+import time
+
 from protocol.abstractline import AbstractLine
 
 
@@ -12,4 +14,8 @@ class HabPosition(AbstractLine):
             self._fix_status, self._latitude, self._longitude, self._altitude = info
 
     def serialize_line(self):
-        return "HP|%d|%f|%f|%f" % (self._fix_status, self._latitude, self._longitude, self._altitude)
+        return "HP|%d|%d|%f|%f|%f" % (time.time() * 1000,
+                                      self._fix_status,
+                                      self._latitude,
+                                      self._longitude,
+                                      self._altitude)
